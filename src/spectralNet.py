@@ -1,16 +1,97 @@
 
+import sys
+sys.path.append('./src')
+sys.path.append('./src/models')
+sys.path.append('./src/data_loader')
+sys.path.append('./src/optimizer')
+sys.path.append('./src/helper')
+
 from sklearn.cluster import KMeans
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import normalize			# version : 0.17
+from MLP_autoencoder import *
+from torch.autograd import Variable
+from MLP_autoencoder import *
+from DManager import *
+from basic_optimizer import *
+
 import sklearn.metrics
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 import numpy.matlib
+import torch
 
+np.set_printoptions(precision=4)
+np.set_printoptions(threshold=3000)
+np.set_printoptions(linewidth=300)
+np.set_printoptions(suppress=True)
 
 class spectralNet():
-	def __init__(self, X):
+	def __init__(self, X, k):
 		self.X = X
-		self.K = self.STSC_σ(X)
 
+		db = {}
+		db['add_decoder'] = False
+		db['learning_rate'] = 0.001
+		db['net_input_size'] = X.shape[1]
+		db['mlp_width'] = 45	#X.shape[1]
+		db['net_depth'] = 3
+		db['k'] = k
+		db['cuda'] = False
+		db['batch_size'] = 10
+
+		if(db['cuda']): db['dataType'] = torch.cuda.FloatTensor
+		else: db['dataType'] = torch.FloatTensor				
+
+
+		db['Kx'] = self.STSC_σ(X)
+		K = torch.tensor(db['Kx'])
+		self.L = Variable(K.type(db['dataType']), requires_grad=False)
+
+
+		self.mlp = MLP_autoencoder(db)
+		self.mlp.set_Laplacian(self.L)
+
+		self.db = db
+		self.setup_data_loader(X)
+
+	def setup_data_loader(self, X):
+		db = self.db
+
+		db['data'] = DManager(X, db['dataType'])
+		db['data_loader'] = DataLoader(dataset=db['data'], batch_size=db['batch_size'], shuffle=True)
+
+
+	def L_to_U(self, L, k):
+		eigenValues,eigenVectors = np.linalg.eigh(L)
+	
+		n2 = len(eigenValues)
+		n1 = n2 - k
+		U = eigenVectors[:, n1:n2]
+		U_lambda = eigenValues[n1:n2]
+		U_normalized = normalize(U, norm='l2', axis=1)
+		
+		return [U, U_normalized]
+
+
+	def obtain_eigen_vectors(self):
+		db = self.db
+		m_sqrt = np.sqrt(db['data'].X.shape[0])		
+		basic_optimizer(self.mlp, self.db, 'data_loader')
+		Y = self.mlp.get_orthogonal_out(db['data'].X_Var)/m_sqrt	# Y^TY = I
+		Y = Y.data.numpy()
+		return Y
+
+	def run(self):
+		db = self.db
+
+		#[U, U_normalized] = self.L_to_U(db['Kx'], db['k'])
+		#allocation = KMeans(db['k'], n_init=20).fit_predict(U_normalized)
+		
+
+		Y = self.obtain_eigen_vectors()
+		Y = normalize(Y, norm='l2', axis=1)
+		allocation = KMeans(db['k'], n_init=20).fit_predict(Y)
+		return allocation
 
 	def STSC_σ(self, X):
 		n = X.shape[0]

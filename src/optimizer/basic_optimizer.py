@@ -5,10 +5,25 @@ import numpy as np
 import sys
 from terminal_print import *
 from torch.autograd import Variable
-from classifier import *
-from format_conversion import *
 import collections
+from sklearn import linear_model
 
+#from classifier import *
+#from format_conversion import *
+
+
+def get_slope(y_axis):
+	y_axis = np.array(list(y_axis))
+
+	n = len(y_axis)
+	LR = linear_model.LinearRegression()
+	X = np.array(range(n))
+	X = X.reshape((n,1))
+	y_axis = y_axis.reshape((n,1))
+	LR.fit(X, y_axis)
+	#print LR.intercept_
+	
+	return LR.coef_
 
 
 def basic_optimizer(model, db, data_loader_name, loss_callback='compute_loss', epoc_loop=5000, zero_is_min=False):
@@ -20,18 +35,19 @@ def basic_optimizer(model, db, data_loader_name, loss_callback='compute_loss', e
 	for epoch in range(epoc_loop):
 		running_avg = []
 		running_avg_grad = []
+
 		for i, data in enumerate(db[data_loader_name], 0):
-			[inputs, labels, indices] = data
+			[inputs, indices] = data
 			inputs = Variable(inputs.type(db['dataType']), requires_grad=False)
-			labels = Variable(labels.type(db['dataType']), requires_grad=False)
 
 			loss_method = getattr(model, loss_callback)
-			loss = loss_method(inputs, labels, indices)
+			loss = loss_method(inputs, indices)
 			#loss_before = loss.data.item()
 
 			model.zero_grad()	
 			optimizer.zero_grad()
 			loss.backward()
+			#import pdb; pdb.set_trace()
 			optimizer.step()
 
 			#	size of the gradient norm

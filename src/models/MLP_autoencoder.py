@@ -7,13 +7,13 @@ import torch.nn.functional as F
 import time 
 
 class MLP_autoencoder(torch.nn.Module):
-	def __init__(self, db, add_decoder=True, learning_rate=0.001):
+	def __init__(self, db):
 		super(MLP_autoencoder, self).__init__()
 		self.db = db
-		self.add_decoder = add_decoder
-		self.learning_rate = learning_rate
+		self.add_decoder = db['add_decoder']
+		self.learning_rate = db['learning_rate']
 		self.input_size = db['net_input_size']
-		self.output_dim = db['net_input_size']
+		self.output_dim = db['k']
 		self.mlp_width = db['mlp_width']
 		self.net_depth = db['net_depth']
 		self.dataType = db['dataType']
@@ -38,7 +38,7 @@ class MLP_autoencoder(torch.nn.Module):
 				exec('self.l' + str(l) + '.activation = "relu"')
 
 
-		if add_decoder:
+		if db['add_decoder']:
 			in_out_list.reverse()
 	
 			for l, item in enumerate(in_out_list):
@@ -64,14 +64,11 @@ class MLP_autoencoder(torch.nn.Module):
 			except:
 				print('\t\t%s '%(i))
 
+	def set_Laplacian(self, L):
+		self.L = L
 
 	def get_optimizer(self):
 		return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
-
-	def mse_loss(self, x, y):
-		return ((x-y)**2).mean()
-	    #return torch.sum((x - y) ** 2)
-		
 
 	def initialize_network(self):
 		db = self.db
@@ -88,14 +85,35 @@ class MLP_autoencoder(torch.nn.Module):
 			if type(m) == torch.nn.Linear:
 				self.num_of_linear_layers += 1
 
+	def get_orthogonal_out(self, x):
+		m_sqrt = np.sqrt(x.shape[0])		
+		y = self.forward(x)
 
-		#	If using L21 regularizer
-		#hsic_cost = HSIC_AE_objective(self, db)
-		#each_L1 = np.sum(np.abs(z), axis=1)
-		#L12_norm = np.sqrt(np.sum(each_L1*each_L1))
-		#db['λ_0_ratio'] = np.abs(hsic_cost/L12_norm)
-		#db['λ'] = float(db['λ_ratio'] * db['λ_0_ratio'])
+		YY = torch.mm(torch.t(y), y)
+		L = torch.cholesky(YY)
+		Li = m_sqrt*torch.t(torch.inverse(L))
+		Yout = torch.mm(y, Li)
+		return Yout
 
+	def compute_loss(self, x, indices):
+		#m_sqrt = np.sqrt(x.shape[0])		
+		#y = self.forward(x)
+
+		#YY = torch.mm(torch.t(y), y)
+		#L = torch.cholesky(YY)
+		#Li = m_sqrt*torch.t(torch.inverse(L))
+		#Yout = torch.mm(y, Li)
+
+
+		Yout = self.get_orthogonal_out(x)
+
+		UU = torch.mm(Yout, torch.t(Yout))
+
+		PP = self.L[indices, :]
+		Ksmall = PP[:, indices]
+		obj_loss = -torch.sum(UU*Ksmall)
+
+		return obj_loss
 
 
 	def gaussian_kernel(self, x, σ):			#Each row is a sample
@@ -113,22 +131,25 @@ class MLP_autoencoder(torch.nn.Module):
 		for m, layer in enumerate(self.children(),1):
 			if m == self.net_depth*2:
 				cmd = 'self.y_pred = self.l' + str(m) + '(y' + str(m-1) + ')'
+				#print(cmd)	
 				exec(cmd)
 				break;
 			elif m == self.net_depth:
 				if self.add_decoder:
 					var = 'y' + str(m)
 					cmd = var + ' = self.l' + str(m) + '(y' + str(m-1) + ')'
+					#print(cmd)	
 					exec(cmd)
 				else:
 					cmd = 'self.y_pred = self.l' + str(m) + '(y' + str(m-1) + ')'
+					#print(cmd)	
 					exec(cmd)
-					return [self.y_pred, self.y_pred]
+					return self.y_pred
 
 			else:
 				var = 'y' + str(m)
 				cmd = var + ' = F.relu(self.l' + str(m) + '(y' + str(m-1) + '))'
-				#cmd2 = var + '= F.dropout(' + var + ', training=self.training)'
+				#print(cmd)	
 				exec(cmd)
 				#exec(cmd2)
 
