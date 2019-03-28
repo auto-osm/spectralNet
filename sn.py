@@ -8,7 +8,7 @@ from spectralNet import *
 from sklearn import preprocessing
 from plot_clusters import *
 
-
+#	Uncomment one of these datasets
 #data_path = 'dataset/inner_rings.csv'; k = 3
 #data_path = 'dataset/spiral_arm.csv'; k = 3
 #data_path = 'dataset/smiley.csv'; k = 3

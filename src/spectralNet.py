@@ -12,7 +12,6 @@ from sklearn.preprocessing import normalize			# version : 0.17
 from torch.autograd import Variable
 from sn_eig_solver import *
 from DManager import *
-from basic_optimizer import *
 
 import sklearn.metrics
 import numpy as np
@@ -85,7 +84,7 @@ class spectralNet():
 			[U, U_normalized] = self.L_to_U(db['Kx'], db['k'])
 			allocation = KMeans(db['k'], n_init=20).fit_predict(U_normalized)
 		else:	
-			Y = self.sn_eig_solver.obtain_eigen_vectors(db)
+			Y = self.sn_eig_solver.obtain_eigen_vectors()
 			Y = normalize(Y, norm='l2', axis=1)
 			allocation = KMeans(db['k'], n_init=20).fit_predict(Y)
 
