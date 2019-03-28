@@ -89,31 +89,41 @@ class sp_net(torch.nn.Module):
 		m_sqrt = np.sqrt(x.shape[0])		
 		y = self.forward(x)
 
+		rk = torch.matrix_rank(y).item()
+		if rk < self.db['k']:
+			import pdb; pdb.set_trace()
+		#	y[:, (self.db['k'] - rk):] = y[:, (self.db['k'] - rk):] + np.ran
+		#print(rk)
+		#import pdb; pdb.set_trace()
+
 		YY = torch.mm(torch.t(y), y)
 		L = torch.cholesky(YY)
+
 		Li = m_sqrt*torch.t(torch.inverse(L))
 		Yout = torch.mm(y, Li)
 		return Yout
 
 	def compute_loss(self, x, indices):
-		#m_sqrt = np.sqrt(x.shape[0])		
-		#y = self.forward(x)
-
-		#YY = torch.mm(torch.t(y), y)
-		#L = torch.cholesky(YY)
-		#Li = m_sqrt*torch.t(torch.inverse(L))
-		#Yout = torch.mm(y, Li)
-
-
 		Yout = self.get_orthogonal_out(x)
-
-		UU = torch.mm(Yout, torch.t(Yout))
+		K = self.distance_kernel(Yout)
 
 		PP = self.L[indices, :]
 		Ksmall = PP[:, indices]
-		obj_loss = -torch.sum(UU*Ksmall)
+		obj_loss = torch.sum(K*Ksmall)
 
 		return obj_loss
+
+
+	def distance_kernel(self, x):			#Each row is a sample
+		bs = x.shape[0]
+		K = self.db['dataType'](bs, bs)
+		K = Variable(K.type(self.db['dataType']), requires_grad=False)		
+
+		for i in range(bs):
+			dif = x[i,:] - x
+			K[i,:] = torch.sum(dif*dif, dim=1)
+
+		return K
 
 
 	def gaussian_kernel(self, x, σ):			#Each row is a sample

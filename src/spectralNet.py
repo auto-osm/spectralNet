@@ -32,11 +32,12 @@ class spectralNet():
 		db['add_decoder'] = False
 		db['learning_rate'] = 0.001
 		db['net_input_size'] = X.shape[1]
-		db['mlp_width'] = 45	#X.shape[1]
+		db['mlp_width'] = 100	#X.shape[1]
 		db['net_depth'] = 3
 		db['k'] = k
+		db['n'] = X.shape[0]
 		db['cuda'] = False
-		db['batch_size'] = 10
+		db['batch_size'] = 30
 
 		if(db['cuda']): db['dataType'] = torch.cuda.FloatTensor
 		else: db['dataType'] = torch.FloatTensor				
@@ -54,7 +55,7 @@ class spectralNet():
 		db = self.db
 
 		db['data'] = DManager(X, db['dataType'])
-		db['data_loader'] = DataLoader(dataset=db['data'], batch_size=db['batch_size'], shuffle=True)
+		db['data_loader'] = DataLoader(dataset=db['data'], batch_size=db['batch_size'], shuffle=True, drop_last=True)
 
 
 	def L_to_U(self, L, k):
@@ -77,15 +78,17 @@ class spectralNet():
 #		Y = Y.data.numpy()
 #		return Y
 
-	def run(self):
+	def run(self, solver='specNet'):
 		db = self.db
 
-		#[U, U_normalized] = self.L_to_U(db['Kx'], db['k'])
-		#allocation = KMeans(db['k'], n_init=20).fit_predict(U_normalized)
-		
-		Y = self.sn_eig_solver.obtain_eigen_vectors(db)
-		Y = normalize(Y, norm='l2', axis=1)
-		allocation = KMeans(db['k'], n_init=20).fit_predict(Y)
+		if db['n'] < 1500 and solver=='eig':
+			[U, U_normalized] = self.L_to_U(db['Kx'], db['k'])
+			allocation = KMeans(db['k'], n_init=20).fit_predict(U_normalized)
+		else:	
+			Y = self.sn_eig_solver.obtain_eigen_vectors(db)
+			Y = normalize(Y, norm='l2', axis=1)
+			allocation = KMeans(db['k'], n_init=20).fit_predict(Y)
+
 		return allocation
 
 	def STSC_σ(self, X):
@@ -137,7 +140,10 @@ class spectralNet():
 		D_inv = 1.0/np.sqrt(np.sum(K, axis=1))
 		Dv = np.outer(D_inv, D_inv)
 		DKD = Dv*K
-	
 		return DKD
+
+		#H = np.eye(n) - (1.0/n)*np.ones((n,n))
+		#HDKDH = H.dot(DKD).dot(H)
+		#return HDKDH
 
 
