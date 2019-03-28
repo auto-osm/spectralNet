@@ -9,9 +9,8 @@ sys.path.append('./src/helper')
 from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import normalize			# version : 0.17
-from MLP_autoencoder import *
 from torch.autograd import Variable
-from MLP_autoencoder import *
+from sn_eig_solver import *
 from DManager import *
 from basic_optimizer import *
 
@@ -45,11 +44,8 @@ class spectralNet():
 
 		db['Kx'] = self.STSC_σ(X)
 		K = torch.tensor(db['Kx'])
-		self.L = Variable(K.type(db['dataType']), requires_grad=False)
-
-
-		self.mlp = MLP_autoencoder(db)
-		self.mlp.set_Laplacian(self.L)
+		db['L'] = Variable(K.type(db['dataType']), requires_grad=False)
+		self.sn_eig_solver = sn_eig_solver(db)
 
 		self.db = db
 		self.setup_data_loader(X)
@@ -73,13 +69,13 @@ class spectralNet():
 		return [U, U_normalized]
 
 
-	def obtain_eigen_vectors(self):
-		db = self.db
-		m_sqrt = np.sqrt(db['data'].X.shape[0])		
-		basic_optimizer(self.mlp, self.db, 'data_loader')
-		Y = self.mlp.get_orthogonal_out(db['data'].X_Var)/m_sqrt	# Y^TY = I
-		Y = Y.data.numpy()
-		return Y
+#	def obtain_eigen_vectors(self):
+#		db = self.db
+#		m_sqrt = np.sqrt(db['data'].X.shape[0])		
+#		basic_optimizer(self.mlp, self.db, 'data_loader')
+#		Y = self.mlp.get_orthogonal_out(db['data'].X_Var)/m_sqrt	# Y^TY = I
+#		Y = Y.data.numpy()
+#		return Y
 
 	def run(self):
 		db = self.db
@@ -87,8 +83,7 @@ class spectralNet():
 		#[U, U_normalized] = self.L_to_U(db['Kx'], db['k'])
 		#allocation = KMeans(db['k'], n_init=20).fit_predict(U_normalized)
 		
-
-		Y = self.obtain_eigen_vectors()
+		Y = self.sn_eig_solver.obtain_eigen_vectors(db)
 		Y = normalize(Y, norm='l2', axis=1)
 		allocation = KMeans(db['k'], n_init=20).fit_predict(Y)
 		return allocation

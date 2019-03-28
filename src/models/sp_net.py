@@ -6,9 +6,9 @@ import numpy as np
 import torch.nn.functional as F
 import time 
 
-class MLP_autoencoder(torch.nn.Module):
+class sp_net(torch.nn.Module):
 	def __init__(self, db):
-		super(MLP_autoencoder, self).__init__()
+		super(sp_net, self).__init__()
 		self.db = db
 		self.add_decoder = db['add_decoder']
 		self.learning_rate = db['learning_rate']
