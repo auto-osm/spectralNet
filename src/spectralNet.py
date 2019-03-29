@@ -36,7 +36,7 @@ class spectralNet():
 		db['k'] = k
 		db['n'] = X.shape[0]
 		db['cuda'] = False
-		db['batch_size'] = 30
+		db['batch_size'] = 40
 
 		if(db['cuda']): db['dataType'] = torch.cuda.FloatTensor
 		else: db['dataType'] = torch.FloatTensor				
