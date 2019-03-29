@@ -13,7 +13,7 @@ from plot_clusters import *
 #data_path = 'dataset/spiral_arm.csv'; k = 3
 #data_path = 'dataset/smiley.csv'; k = 3
 #data_path = 'dataset/moon.csv'; k = 2
-data_path = 'dataset/four_lines.csv'; k = 4
+#data_path = 'dataset/four_lines.csv'; k = 4
 #data_path = 'dataset/noisy_two_clusters.csv'; k = 3
 
 
